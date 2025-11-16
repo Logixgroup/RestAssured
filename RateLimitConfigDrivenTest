@@ -1,0 +1,343 @@
+<dependencies>
+    <!-- REST Assured -->
+    <dependency>
+        <groupId>io.rest-assured</groupId>
+        <artifactId>rest-assured</artifactId>
+        <version>5.4.0</version>
+        <scope>test</scope>
+    </dependency>
+
+    <!-- TestNG -->
+    <dependency>
+        <groupId>org.testng</groupId>
+        <artifactId>testng</artifactId>
+        <version>7.10.2</version>
+        <scope>test</scope>
+    </dependency>
+
+    <!-- SnakeYAML for YAML parsing -->
+    <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>2.1</version>
+    </dependency>
+</dependencies>
+
+----------------
+//config.yaml
+
+api:
+  baseUrl: "https://api.example.com/resource"
+rateLimit:
+  maxRequests: 10
+  windowSeconds: 60
+concurrency:
+  threads: 15
+timeouts:
+  connect: 5000
+  read: 5000
+
+//---------------------------------------------------------------
+import org.yaml.snakeyaml.Yaml;
+import java.io.InputStream;
+import java.util.Map;
+
+public class ConfigLoader {
+
+    private static Map<String, Object> config;
+
+    static {
+        try (InputStream in = ConfigLoader.class.getClassLoader().getResourceAsStream("config.yaml")) {
+            if (in == null) throw new RuntimeException("config.yaml not found!");
+            Yaml yaml = new Yaml();
+            config = yaml.load(in);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load config.yaml", e);
+        }
+    }
+
+    public static String getBaseUrl() {
+        Map<String, Object> api = (Map<String, Object>) config.get("api");
+        return api.get("baseUrl").toString();
+    }
+
+    public static int getRateLimit() {
+        Map<String, Object> rl = (Map<String, Object>) config.get("rateLimit");
+        return (Integer) rl.get("maxRequests");
+    }
+
+    public static int getWindowSeconds() {
+        Map<String, Object> rl = (Map<String, Object>) config.get("rateLimit");
+        return (Integer) rl.get("windowSeconds");
+    }
+
+    public static int getConcurrencyThreads() {
+        Map<String, Object> conc = (Map<String, Object>) config.get("concurrency");
+        return (Integer) conc.get("threads");
+    }
+
+    public static int getConnectTimeout() {
+        Map<String, Object> t = (Map<String, Object>) config.get("timeouts");
+        return (Integer) t.get("connect");
+    }
+
+    public static int getReadTimeout() {
+        Map<String, Object> t = (Map<String, Object>) config.get("timeouts");
+        return (Integer) t.get("read");
+    }
+}
+
+
+//--------------------
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
+
+public class RateLimitConfigDrivenTest {
+
+    private static int RATE_LIMIT;
+    private static int WINDOW_SECONDS;
+    private static int THREADS;
+    private static int CONNECT_TIMEOUT;
+    private static int READ_TIMEOUT;
+
+    @BeforeClass
+    public void setup() {
+        RestAssured.baseURI = ConfigLoader.getBaseUrl();
+        RATE_LIMIT = ConfigLoader.getRateLimit();
+        WINDOW_SECONDS = ConfigLoader.getWindowSeconds();
+        THREADS = ConfigLoader.getConcurrencyThreads();
+        CONNECT_TIMEOUT = ConfigLoader.getConnectTimeout();
+        READ_TIMEOUT = ConfigLoader.getReadTimeout();
+    }
+
+    private Response sendRequest() {
+        return RestAssured
+                .given()
+                .relaxedHTTPSValidation()
+                .timeout(CONNECT_TIMEOUT, READ_TIMEOUT)
+                .get();
+    }
+
+    @Test
+    public void testRateLimitBoundary() {
+        // Send max allowed requests
+        for (int i = 1; i <= RATE_LIMIT; i++) {
+            Response res = sendRequest();
+            Assert.assertEquals(res.statusCode(), 200, "Allowed request failed: " + i);
+        }
+
+        // Next request should fail
+        Response res = sendRequest();
+        Assert.assertEquals(res.statusCode(), 429, "Exceeded request did not fail");
+        Assert.assertNotNull(res.getHeader("Retry-After"), "Retry-After header missing");
+    }
+
+    @Test
+    public void testConcurrentRateLimit() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(THREADS);
+        List<Future<Integer>> results = new ArrayList<>();
+
+        for (int i = 0; i < THREADS; i++) {
+            results.add(executor.submit(() -> sendRequest().statusCode()));
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(30, TimeUnit.SECONDS);
+
+        long allowed = results.stream().map(Future::get).filter(code -> code == 200).count();
+        long blocked = results.stream().map(Future::get).filter(code -> code == 429).count();
+
+        Assert.assertTrue(allowed <= RATE_LIMIT, "Allowed requests exceed rate limit");
+        Assert.assertTrue(blocked >= 1, "At least one request should be blocked");
+    }
+
+    @Test
+    public void testRateLimitReset() throws InterruptedException {
+        Thread.sleep((WINDOW_SECONDS + 2) * 1000L); // Wait for window reset
+        Response res = sendRequest();
+        Assert.assertEquals(res.statusCode(), 200, "Request after window reset failed");
+    }
+}
+
+
+/*--------------------------------Positive flow , Negative Too Many Requests, Rate limit headers, Stress / Load , Edge Conditions-----------------*/
+
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
+
+public class RateLimitTestSuite {
+
+    private static final int RATE_LIMIT = 10;     // allowed requests per window
+    private static final int WINDOW_SECONDS = 60; // 1-minute window
+    private static final String BASE_URL = "https://api.example.com/resource";
+
+    @BeforeClass
+    public void setup() {
+        RestAssured.baseURI = BASE_URL;
+    }
+
+    // ----------------------------------------------------------------
+    // 1️⃣ Validate normal behavior: first N requests should pass
+    // ----------------------------------------------------------------
+    @Test
+    public void testAllowedRequestsWithinLimit() {
+        for (int i = 1; i <= RATE_LIMIT; i++) {
+            Response res = RestAssured.given().get();
+
+            Assert.assertEquals(res.statusCode(), 200,
+                    "Request " + i + " should be allowed but failed");
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // 2️⃣ Exceed the rate limit and expect 429 Too Many Requests
+    // ----------------------------------------------------------------
+    @Test(dependsOnMethods = "testAllowedRequestsWithinLimit")
+    public void testRateLimitExceeded() {
+        Response res = RestAssured.given().get();
+
+        Assert.assertEquals(res.statusCode(), 429,
+                "After exceeding limit, API should return 429");
+
+        Assert.assertTrue(res.getHeader("Retry-After") != null,
+                "429 response must include Retry-After header");
+    }
+
+    // ----------------------------------------------------------------
+    // 3️⃣ Validate Retry-After header correctness
+    // ----------------------------------------------------------------
+    @Test(dependsOnMethods = "testRateLimitExceeded")
+    public void testRetryAfterValidation() {
+
+        Response res = RestAssured.get();
+
+        String retryAfter = res.getHeader("Retry-After");
+        Assert.assertNotNull(retryAfter, "Retry-After header must exist");
+
+        int retrySeconds = Integer.parseInt(retryAfter);
+        Assert.assertTrue(retrySeconds <= WINDOW_SECONDS,
+                "Retry-After should not exceed the rate-limit window");
+    }
+
+    // ----------------------------------------------------------------
+    // 4️⃣ Validate that after cooldown the API recovers and allows requests
+    // ----------------------------------------------------------------
+    @Test(dependsOnMethods = "testRetryAfterValidation")
+    public void testRateLimitResetsAfterWindow() throws InterruptedException {
+
+        Thread.sleep((WINDOW_SECONDS + 2) * 1000L); // wait to reset window
+
+        Response res = RestAssured.get();
+        Assert.assertEquals(res.statusCode(), 200,
+                "After rate limit window expires, API should allow requests");
+    }
+
+    // ----------------------------------------------------------------
+    // 5️⃣ Burst test: send rapid requests and ensure rate limit triggers
+    // ----------------------------------------------------------------
+    @Test
+    public void testBurstTrafficRateLimit() {
+
+        int totalRequests = RATE_LIMIT + 5;
+        int success = 0;
+        int failures = 0;
+
+        for (int i = 1; i <= totalRequests; i++) {
+            Response res = RestAssured.get();
+
+            if (res.statusCode() == 200) success++;
+            if (res.statusCode() == 429) failures++;
+        }
+
+        Assert.assertEquals(success, RATE_LIMIT,
+                "Only allowed requests should succeed");
+
+        Assert.assertTrue(failures >= 1,
+                "At least one request must fail with 429 in burst test");
+    }
+
+    // ----------------------------------------------------------------
+    // 6️⃣ Concurrency Test: multiple threads hitting API simultaneously
+    // ----------------------------------------------------------------
+    @Test
+    public void testConcurrentClientsRateLimit() throws Exception {
+
+        int threads = 15; // more than rate limit
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+
+        List<Future<Integer>> results = new ArrayList<>();
+
+        for (int i = 0; i < threads; i++) {
+            results.add(executor.submit(() -> RestAssured.get().statusCode()));
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(30, TimeUnit.SECONDS);
+
+        long allowed = results.stream()
+                .map(Future::get)
+                .filter(code -> code == 200)
+                .count();
+
+        long blocked = results.stream()
+                .map(Future::get)
+                .filter(code -> code == 429)
+                .count();
+
+        Assert.assertTrue(allowed <= RATE_LIMIT,
+                "Concurrent: allowed requests must not exceed configured rate limit");
+
+        Assert.assertTrue(blocked >= 1,
+                "Concurrent: at least one request should be rate-limited");
+    }
+
+    // ----------------------------------------------------------------
+    // 7️⃣ Boundary Condition: last allowed request should pass
+    // ----------------------------------------------------------------
+    @Test
+    public void testBoundaryLastAllowedRequest() {
+
+        for (int i = 1; i < RATE_LIMIT; i++)
+            RestAssured.get();
+
+        Response lastAllowed = RestAssured.get();
+        Assert.assertEquals(lastAllowed.statusCode(), 200,
+                "The RATE_LIMIT-th request should be allowed");
+
+        Response next = RestAssured.get();
+        Assert.assertEquals(next.statusCode(), 429,
+                "The next request beyond limit must fail");
+    }
+
+    // ----------------------------------------------------------------
+    // 8️⃣ Header-based Rate Limit Reporting Validation
+    // ----------------------------------------------------------------
+    @Test
+    public void testRateLimitHeaders() {
+
+        Response res = RestAssured.get();
+
+        Assert.assertNotNull(res.getHeader("X-RateLimit-Limit"),
+                "Rate limit header missing");
+
+        Assert.assertNotNull(res.getHeader("X-RateLimit-Remaining"),
+                "Remaining header missing");
+
+        Assert.assertNotNull(res.getHeader("X-RateLimit-Reset"),
+                "Reset time header missing");
+    }
+}
