@@ -1,0 +1,218 @@
+1. Update FileUploadUtil.java for Full Validation
+import io.restassured.response.Response;
+import java.io.File;
+import java.util.List;
+
+public class FileUploadUtil {
+
+    // Validate file type
+    public static boolean isValidFileType(String fileName) {
+        String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+        if (ConfigUtil.allowUpperCaseExtensions()) {
+            extension = extension.toLowerCase();
+        }
+        return ConfigUtil.getAllowedFileTypes().contains(extension);
+    }
+
+    // Validate file size (in bytes)
+    public static boolean isValidFileSize(File file) {
+        long maxBytes = ConfigUtil.getMaxFileSizeMB() * 1024L * 1024L;
+        long minBytes = ConfigUtil.getMinFileSizeKB() * 1024L;
+        long size = file.length();
+        return size >= minBytes && size <= maxBytes;
+    }
+
+    // Upload single file with all validations
+    public static Response uploadFile(File file) {
+        if (!isValidFileType(file.getName())) {
+            throw new IllegalArgumentException("Invalid file type: " + file.getName());
+        }
+        if (file.length() == 0) {
+            throw new IllegalArgumentException("Empty file: " + file.getName());
+        }
+        if (!isValidFileSize(file)) {
+            throw new IllegalArgumentException("File size exceeds limit: " + file.getName());
+        }
+
+        return io.restassured.RestAssured.given(RestAssuredSpecs.getRequestSpec())
+                .multiPart(ConfigUtil.getFileParamName(), file)
+                .when()
+                .post()
+                .then()
+                .spec(RestAssuredSpecs.getSuccessResponseSpec())
+                .extract()
+                .response();
+    }
+
+    // Upload multiple files with validations
+    public static Response uploadMultipleFiles(List<File> files) {
+        if (files.size() > ConfigUtil.getMaxFilesPerRequest()) {
+            throw new IllegalArgumentException("Exceeds max files per request: " + files.size());
+        }
+
+        io.restassured.specification.RequestSpecification request = io.restassured.RestAssured.given(RestAssuredSpecs.getRequestSpec());
+
+        for (File file : files) {
+            if (!isValidFileType(file.getName())) {
+                throw new IllegalArgumentException("Invalid file type: " + file.getName());
+            }
+            if (file.length() == 0) {
+                throw new IllegalArgumentException("Empty file: " + file.getName());
+            }
+            if (!isValidFileSize(file)) {
+                throw new IllegalArgumentException("File size exceeds limit: " + file.getName());
+            }
+            request.multiPart(ConfigUtil.getFileParamName(), file);
+        }
+
+        return request
+                .when()
+                .post()
+                .then()
+                .spec(RestAssuredSpecs.getSuccessResponseSpec())
+                .extract()
+                .response();
+    }
+}
+
+2. Update FileUtils.java to Identify Edge Cases
+import java.io.File;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class FileUtils {
+
+    public static List<File> getAllFilesInFolder(String folderPath) {
+        File folder = new File(folderPath);
+        if (!folder.exists() || !folder.isDirectory()) {
+            throw new RuntimeException("Folder not found: " + folderPath);
+        }
+
+        return List.of(folder.listFiles()).stream()
+                .filter(File::isFile)
+                .collect(Collectors.toList());
+    }
+
+    public static List<File> getValidFiles(List<File> files) {
+        return files.stream()
+                .filter(f -> FileUploadUtil.isValidFileType(f.getName()) && f.length() > 0)
+                .collect(Collectors.toList());
+    }
+
+    public static List<File> getInvalidFiles(List<File> files) {
+        return files.stream()
+                .filter(f -> !FileUploadUtil.isValidFileType(f.getName()))
+                .collect(Collectors.toList());
+    }
+
+    public static List<File> getEmptyFiles(List<File> files) {
+        return files.stream()
+                .filter(f -> f.length() == 0)
+                .collect(Collectors.toList());
+    }
+
+    public static List<File> getLargeFiles(List<File> files) {
+        return files.stream()
+                .filter(f -> f.length() > ConfigUtil.getMaxFileSizeMB() * 1024L * 1024L)
+                .collect(Collectors.toList());
+    }
+}
+
+3. Edge Case TestNG Suite
+import io.restassured.response.Response;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+import java.io.File;
+import java.util.List;
+
+public class FileUploadEdgeCasesTest {
+
+    private static final String UPLOAD_FOLDER = "src/test/resources/testupload";
+
+    /** ---------------- Valid Files ---------------- */
+    @Test
+    public void testValidFilesUpload() {
+        List<File> validFiles = FileUtils.getValidFiles(FileUtils.getAllFilesInFolder(UPLOAD_FOLDER));
+
+        for (File file : validFiles) {
+            Response response = FileUploadUtil.uploadFile(file);
+            Assert.assertEquals(response.getStatusCode(), ConfigUtil.getSuccessStatusCode(),
+                    "Valid file upload failed: " + file.getName());
+        }
+    }
+
+    /** ---------------- Invalid File Extensions ---------------- */
+    @Test
+    public void testInvalidFileExtensions() {
+        List<File> invalidFiles = FileUtils.getInvalidFiles(FileUtils.getAllFilesInFolder(UPLOAD_FOLDER));
+
+        for (File file : invalidFiles) {
+            try {
+                FileUploadUtil.uploadFile(file);
+                Assert.fail("Invalid extension should fail: " + file.getName());
+            } catch (IllegalArgumentException e) {
+                Assert.assertTrue(e.getMessage().contains("Invalid file type"));
+            }
+        }
+    }
+
+    /** ---------------- Empty Files ---------------- */
+    @Test
+    public void testEmptyFiles() {
+        List<File> emptyFiles = FileUtils.getEmptyFiles(FileUtils.getAllFilesInFolder(UPLOAD_FOLDER));
+
+        for (File file : emptyFiles) {
+            try {
+                FileUploadUtil.uploadFile(file);
+                Assert.fail("Empty file should fail: " + file.getName());
+            } catch (IllegalArgumentException e) {
+                Assert.assertTrue(e.getMessage().contains("Empty file"));
+            }
+        }
+    }
+
+    /** ---------------- Large Files ---------------- */
+    @Test
+    public void testLargeFiles() {
+        List<File> largeFiles = FileUtils.getLargeFiles(FileUtils.getAllFilesInFolder(UPLOAD_FOLDER));
+
+        for (File file : largeFiles) {
+            try {
+                FileUploadUtil.uploadFile(file);
+                Assert.fail("Large file should fail: " + file.getName());
+            } catch (IllegalArgumentException e) {
+                Assert.assertTrue(e.getMessage().contains("File size exceeds limit"));
+            }
+        }
+    }
+
+    /** ---------------- Multiple Files Edge Cases ---------------- */
+    @Test
+    public void testMultipleFilesEdgeCases() {
+        List<File> allFiles = FileUtils.getAllFilesInFolder(UPLOAD_FOLDER);
+
+        // Mix valid + invalid + empty + large
+        try {
+            FileUploadUtil.uploadMultipleFiles(allFiles);
+            Assert.fail("Uploading mixed files should fail");
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().matches(".*(Invalid file type|Empty file|File size exceeds limit).*"));
+        }
+    }
+
+    /** ---------------- Exceed Max Files Per Request ---------------- */
+    @Test
+    public void testExceedMaxFilesPerRequest() {
+        List<File> validFiles = FileUtils.getValidFiles(FileUtils.getAllFilesInFolder(UPLOAD_FOLDER));
+        while (validFiles.size() <= ConfigUtil.getMaxFilesPerRequest()) {
+            validFiles.addAll(validFiles); // double the list to exceed
+        }
+
+        try {
+            FileUploadUtil.uploadMultipleFiles(validFiles);
+            Assert.fail("Exceeding max files per request should fail");
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("Exceeds max files per request"));
+        }
+    }
+}
