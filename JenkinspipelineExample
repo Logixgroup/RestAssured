@@ -1,0 +1,80 @@
+pipeline {
+  agent any
+
+  stages {
+
+    stage('Build') {
+      steps {
+        echo "Building application..."
+        sh 'mvn clean install -DskipTests'
+      }
+    }
+
+    stage('Deploy to QA') {
+      steps {
+        echo "Deploying build to QA environment..."
+        sh './deploy.sh qa'
+      }
+    }
+
+    stage('Health Check (Gate 1)') {
+      steps {
+        script {
+          echo "Checking service health..."
+          def status = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" https://qa.myapp.com/health", returnStdout: true).trim()
+          if (status != '200') {
+            error("❌ Health check failed — stopping pipeline.")
+          }
+        }
+      }
+    }
+
+    stage('Smoke Tests (Gate 2)') {
+      steps {
+        echo "Running smoke automation suite..."
+        sh 'mvn test -Denv=qa -Dgroups=smoke'
+      }
+    }
+
+    stage('Regression / E2E Tests') {
+      steps {
+        echo "Running full regression suite..."
+        sh 'mvn test -Denv=qa -Dgroups=regression'
+      }
+    }
+
+    stage('Publish Extent Report') {
+      steps {
+        echo "Publishing Extent Report..."
+        publishHTML (target : [
+          allowMissing: false,
+          keepAll: true,
+          reportDir: 'test-output/ExtentReport',
+          reportFiles: 'index.html',
+          reportName: 'Extent Report'
+        ])
+      }
+    }
+  }
+
+  post {
+    always {
+      script {
+        echo "Sending Email Notification..."
+        emailext (
+          to: "qa-team@company.com",
+          subject: "Automation Pipeline: ${currentBuild.currentResult}",
+          body: """
+          <h3>Automation Pipeline Result: ${currentBuild.currentResult}</h3>
+          <p>Build Number: ${env.BUILD_NUMBER}</p>
+          <p>Job: ${env.JOB_NAME}</p>
+          <p>Branch: ${env.GIT_BRANCH}</p>
+          <p>Triggered By: ${currentBuild.getBuildCauses()}</p>
+          <p><a href="${env.BUILD_URL}">Click to view pipeline details</a></p>
+          <p><a href="${env.BUILD_URL}HTML_20Report">Click to view Extent Reports</a></p>
+          """
+        )
+      }
+    }
+  }
+}
