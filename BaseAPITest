@@ -1,0 +1,21 @@
+package com.framework.tests;
+
+import com.framework.specs.RequestSpecFactory;
+import com.framework.specs.ResponseSpecFactory;
+import io.restassured.specification.RequestSpecification;
+import io.restassured.specification.ResponseSpecification;
+import org.testng.annotations.BeforeClass;
+
+public abstract class BaseApiTest {
+
+    protected RequestSpecification baseReqSpec;
+    protected ResponseSpecification okSpec;
+    protected ResponseSpecification badRequestSpec;
+
+    @BeforeClass
+    public void initSpecs() {
+        baseReqSpec = RequestSpecFactory.getBaseSpec();
+        okSpec = ResponseSpecFactory.getOkSpec();
+        badRequestSpec = ResponseSpecFactory.getBadRequestSpec();
+    }
+}
