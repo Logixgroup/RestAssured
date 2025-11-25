@@ -1,0 +1,26 @@
+package com.framework.specs;
+
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.http.ContentType;
+import io.restassured.specification.RequestSpecification;
+
+import static io.restassured.RestAssured.*;
+
+public class RequestSpecFactory {
+
+    public static RequestSpecification getBaseSpec() {
+        return new RequestSpecBuilder()
+                .setBaseUri(System.getProperty("baseUri", "https://api.myserver.com"))
+                .setContentType(ContentType.JSON)
+                .addHeader("Accept", "application/json")
+                .build();
+    }
+
+    public static RequestSpecification getAuthSpec(String token) {
+        return new RequestSpecBuilder()
+                .setBaseUri(System.getProperty("baseUri", "https://api.myserver.com"))
+                .addHeader("Authorization", "Bearer " + token)
+                .setContentType(ContentType.JSON)
+                .build();
+    }
+}
