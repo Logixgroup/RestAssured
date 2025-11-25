@@ -1,0 +1,41 @@
+package com.framework.client;
+
+import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
+
+import static io.restassured.RestAssured.*;
+
+public class ApiClient {
+
+    public static Response execute(String method, String endpoint, Object body,
+                                   RequestSpecification requestSpec) {
+
+        switch (method.toUpperCase()) {
+            case "GET":
+                return given().spec(requestSpec)
+                        .when().get(endpoint);
+
+            case "POST":
+                return given().spec(requestSpec)
+                        .body(body)
+                        .when().post(endpoint);
+
+            case "PUT":
+                return given().spec(requestSpec)
+                        .body(body)
+                        .when().put(endpoint);
+
+            case "PATCH":
+                return given().spec(requestSpec)
+                        .body(body)
+                        .when().patch(endpoint);
+
+            case "DELETE":
+                return given().spec(requestSpec)
+                        .when().delete(endpoint);
+
+            default:
+                throw new IllegalArgumentException("Unsupported HTTP method: " + method);
+        }
+    }
+}
