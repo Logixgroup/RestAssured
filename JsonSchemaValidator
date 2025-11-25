@@ -1,0 +1,9 @@
+public static boolean isSchemaValid(Response response, String schemaFile) {
+    try {
+        response.then().body(JsonSchemaValidator
+                .matchesJsonSchemaInClasspath("schemas/" + schemaFile));
+        return true;
+    } catch (AssertionError e) {
+        return false;
+    }
+}
