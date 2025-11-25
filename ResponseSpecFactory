@@ -1,0 +1,173 @@
+package com.framework.specs;
+
+import io.restassured.builder.ResponseSpecBuilder;
+import io.restassured.http.ContentType;
+import io.restassured.specification.ResponseSpecification;
+
+import static org.hamcrest.Matchers.*;
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
+
+public class ResponseSpecFactory {
+
+    /** ============= 1xx — INFORMATIONAL ============= */
+    public static ResponseSpecification getContinueSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(100)
+                .expectStatusLine(containsString("Continue"))
+                .build();
+    }
+
+    public static ResponseSpecification getSwitchingProtocolsSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(101)
+                .build();
+    }
+
+    /** ============= 2xx — SUCCESS ============= */
+    public static ResponseSpecification getOkSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(200)
+                .expectContentType(ContentType.JSON)
+                .expectHeader("Content-Type", containsString("application/json"))
+                .expectBody("status", anyOf(equalTo("SUCCESS"), equalTo("OK")))
+                .build();
+    }
+
+    public static ResponseSpecification getCreatedSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(201)
+                .expectHeader("Location", notNullValue())
+                .build();
+    }
+
+    public static ResponseSpecification getNoContentSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(204)
+                .build();
+    }
+
+    /** With schema (optional feature for stable APIs) */
+    public static ResponseSpecification getOkSchemaSpec(String schemaPath) {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(200)
+                .expectBody(matchesJsonSchemaInClasspath(schemaPath))
+                .build();
+    }
+
+    /** ============= 3xx — REDIRECTION ============= */
+    public static ResponseSpecification getRedirectSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(anyOf(equalTo(301), equalTo(302), equalTo(307), equalTo(308)))
+                .expectHeader("Location", notNullValue())
+                .build();
+    }
+
+    public static ResponseSpecification getNotModifiedSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(304)
+                .build();
+    }
+
+    /** ============= 4xx — CLIENT ERROR ============= */
+    public static ResponseSpecification getBadRequestSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(400)
+                .expectContentType(ContentType.JSON)
+                .expectBody("error", notNullValue())
+                .expectBody("message", notNullValue())
+                .build();
+    }
+
+    public static ResponseSpecification getUnauthorizedSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(401)
+                .expectHeader("WWW-Authenticate", notNullValue())
+                .build();
+    }
+
+    public static ResponseSpecification getForbiddenSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(403)
+                .build();
+    }
+
+    public static ResponseSpecification getNotFoundSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(404)
+                .expectBody("message", containsStringIgnoringCase("not found"))
+                .build();
+    }
+
+    public static ResponseSpecification getConflictSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(409)
+                .expectBody("errorCode", notNullValue())
+                .build();
+    }
+
+    public static ResponseSpecification getTooManyRequestsSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(429)
+                .expectHeader("Retry-After", notNullValue())
+                .build();
+    }
+
+    /** ============= 5xx — SERVER ERROR ============= */
+    public static ResponseSpecification getInternalServerErrorSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(500)
+                .expectBody("error", notNullValue())
+                .build();
+    }
+
+    public static ResponseSpecification getNotImplementedSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(501)
+                .build();
+    }
+
+    public static ResponseSpecification getBadGatewaySpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(502)
+                .build();
+    }
+
+    public static ResponseSpecification getServiceUnavailableSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(503)
+                .expectHeader("Retry-After", notNullValue())
+                .build();
+    }
+
+    public static ResponseSpecification getGatewayTimeoutSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(504)
+                .build();
+    }
+
+    /** ============= CUSTOM BUSINESS NEGATIVE SCENARIOS ============= */
+    public static ResponseSpecification getValidationFailureSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(422)
+                .expectBody("validationErrors", not(empty()))
+                .build();
+    }
+
+    public static ResponseSpecification getUnsupportedMediaTypeSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(415)
+                .expectBody("message", containsStringIgnoringCase("content type"))
+                .build();
+    }
+
+    /** ============= COMMON FAIL SAFE =============
+     *  For APIs returning non-standard responses
+     *  (Useful while testing unstable staging environments)
+     */
+    public static ResponseSpecification getGenericErrorSpec() {
+        return new ResponseSpecBuilder()
+                .expectStatusCode(anyOf(is(400), is(404), is(500)))
+                .expectBody(anything())
+                .build();
+    }
+}
