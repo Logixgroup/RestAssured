@@ -1,0 +1,27 @@
+/*Request Spec stores repeatable request configuration (like base URL, headers).
+Response Spec stores repeatable response validations (like expected status code).
+Using them makes API automation reusable, clean and easy to maintain. */
+
+
+
+RequestSpecification reqSpec = new RequestSpecBuilder()
+        .setBaseUri("https://reqres.in")
+        .setContentType(ContentType.JSON)
+        .build();
+
+
+ResponseSpecification resSpec = new ResponseSpecBuilder()
+        .expectStatusCode(200)
+        .expectContentType(ContentType.JSON)
+        .build();
+
+
+//Usage
+
+given()
+        .spec(reqSpec)            // 👈 request spec applied
+.when()
+        .get("/api/users/2")
+.then()
+        .spec(resSpec)            // 👈 response spec applied
+        .log().all();             // additional logging
