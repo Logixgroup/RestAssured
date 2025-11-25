@@ -1,0 +1,24 @@
+@Test
+public void uploadUserProfile() {
+
+    File file = new File("src/test/resources/profile.png");
+
+    Map<String, String> metadata = new HashMap<>();
+    metadata.put("uploadedBy", "automationUser");
+    metadata.put("description", "Profile picture upload");
+
+    given()
+        .baseUri("https://example.com")
+        .pathParam("userId", 123)        // PATH PARAM
+        .queryParam("country", "IN")     // QUERY PARAM
+        .queryParam("type", "profile")   // QUERY PARAM
+        .multiPart("file", file, "image/png")  // MULTIPART PART-1
+        .multiPart("meta", metadata, "application/json")  // MULTIPART PART-2
+        .header("Authorization", "Bearer " + token)
+        .log().all()
+    .when()
+        .post("/users/{userId}/upload")
+    .then()
+        .log().all()
+        .statusCode(200);
+}
