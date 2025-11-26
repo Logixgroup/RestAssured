@@ -3,68 +3,81 @@ package com.framework.headers;
 import java.util.HashMap;
 import java.util.Map;
 
-public class  {
+public class HeadersBuilder {
 
     private final Map<String, String> headers = new HashMap<>();
 
-    public HeadersBuilder contentType(String contentType) {
+    public HeadersBuilder withContentType(String contentType) {
         headers.put(HeaderKeys.CONTENT_TYPE.value(), contentType);
         return this;
     }
 
-    public HeadersBuilder accept(String acceptType) {
+    public HeadersBuilder withAccept(String acceptType) {
         headers.put(HeaderKeys.ACCEPT.value(), acceptType);
         return this;
     }
 
-    public HeadersBuilder acceptLanguage(String lang) {
+    public HeadersBuilder withAcceptLanguage(String lang) {
         headers.put(HeaderKeys.ACCEPT_LANGUAGE.value(), HeaderUtils.acceptLanguage(lang));
         return this;
     }
 
-    public HeadersBuilder userAgent(String userAgent) {
+    public HeadersBuilder withUserAgent(String userAgent) {
         headers.put(HeaderKeys.USER_AGENT.value(), userAgent);
         return this;
     }
 
-    public HeadersBuilder bearer(String token) {
+    // ⭐ Renamed — Bearer Authorization Header
+    public HeadersBuilder withBearerAuthorisation(String token) {
         headers.put(HeaderKeys.AUTHORIZATION.value(), HeaderUtils.bearerAuthHeader(token));
         return this;
     }
 
-    public HeadersBuilder basic(String user, String pass) {
+    // ⭐ New — Add Bearer token with a separate header name (e.g., X-Auth-Token)
+    public HeadersBuilder withBearerAuthorisationId(String headerKey, String token) {
+        headers.put(headerKey, HeaderUtils.bearerAuthHeader(token));
+        return this;
+    }
+
+    public HeadersBuilder withBasicAuthorisation(String user, String pass) {
         headers.put(HeaderKeys.AUTHORIZATION.value(), HeaderUtils.basicAuthHeader(user, pass));
         return this;
     }
 
-    public HeadersBuilder accessKey(String key, String secret) {
+    public HeadersBuilder withAccessKeyAuthorisation(String key, String secret) {
         headers.put(HeaderKeys.AUTHORIZATION.value(), HeaderUtils.accessKeyAuthHeader(key, secret));
         return this;
     }
 
-    public HeadersBuilder correlationId(String id) {
+    // ⭐ Renamed — Correlation id
+    public HeadersBuilder withCorrelationId(String id) {
         headers.put(HeaderKeys.CORRELATION_ID.value(), id);
         return this;
     }
 
-    public HeadersBuilder custom(String key, String value) {
+    // ⭐ Convenience method — auto-generate correlation ID
+    public HeadersBuilder withGeneratedCorrelationId() {
+        return withCorrelationId(HeaderUtils.generateTransactionId());
+    }
+
+    // ⭐ Custom Header
+    public HeadersBuilder withCustomHeader(String key, String value) {
         headers.put(key, value);
         return this;
     }
 
-    public Map<String, String> build() {
-        return Map.copyOf(headers);
-    }
-
-//  Remove a header by its string key
+    // ⭐ Remove header
     public HeadersBuilder remove(String key) {
         headers.remove(key);
         return this;
     }
 
-    // Remove a header by enum-safe key
     public HeadersBuilder remove(HeaderKeys key) {
         headers.remove(key.value());
         return this;
+    }
+
+    public Map<String, String> build() {
+        return Map.copyOf(headers);
     }
 }
