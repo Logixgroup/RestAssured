@@ -1,0 +1,46 @@
+@BeforeMethod
+public void setUp() throws Exception {
+
+    testData = testEnvConfig.getSubscriptionsTestData();
+
+    headers = new HeadersBuilder()
+            .withBasicAuthorization(testData.getAuthorisationKey(), testData.getAuthorisationSecret())
+            .withCustom("FIID", testData.getOfferingId())
+            .withCorrelationId(testData.getGUID())
+            .withTransactionId(); // Auto UUID
+
+    String accessToken = helper.getAccessToken(headers.build());
+
+    headers.withBearerAuthorization(accessToken)
+           .withContentType(ContentType.XML.toString());
+
+    testBody = new String(Files.readAllBytes(subscriptionBody.getFile().toPath()));
+    testBody = testBody.replace("{fid}", testData.getFiId())
+                       .replace("{customerId}", testData.getCustId());
+}
+
+@Test(description = "Complete Header Setup Example")
+public void completeHeaderSetExample() {
+
+    if (envConfig.hasPort()) {
+        req.port(envConfig.getPort());
+    }
+
+    Map<String, String> headers = new HeadersBuilder()
+            .withBearerAuthorization("jwt-token-123")
+            .withContentType("application/json")
+            .withAccept("application/json")
+            .withAcceptLanguage("en-GB")
+            .withUserAgent("My-API-Automation")
+            .withCorrelationId("corr-" + System.currentTimeMillis())
+            .withCustom("client-id", "mobile-app")
+            .withTransactionId()
+            .build();
+
+    given()
+            .headers(headers)
+    .when()
+            .get("/api/orders")
+    .then()
+            .statusCode(200);
+}
