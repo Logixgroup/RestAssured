@@ -55,4 +55,16 @@ public class  {
     public Map<String, String> build() {
         return Map.copyOf(headers);
     }
+
+//  Remove a header by its string key
+    public HeadersBuilder remove(String key) {
+        headers.remove(key);
+        return this;
+    }
+
+    // Remove a header by enum-safe key
+    public HeadersBuilder remove(HeaderKeys key) {
+        headers.remove(key.value());
+        return this;
+    }
 }
