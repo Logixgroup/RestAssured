@@ -1,0 +1,20 @@
+@Test
+public void completeHeaderSetExample() {
+
+    Map<String, String> headers = new HeadersBuilder()
+            .bearer("jwt-token-123")
+            .contentType("application/json")
+            .accept("application/json")
+            .acceptLanguage("en-GB")
+            .userAgent("My-API-Automation")
+            .correlationId("corr-" + System.currentTimeMillis())
+            .custom("client-id", "mobile-app")
+            .build();
+
+    given()
+            .headers(headers)
+    .when()
+            .get("/api/orders")
+    .then()
+            .statusCode(200);
+}
