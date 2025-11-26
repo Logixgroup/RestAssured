@@ -1,0 +1,58 @@
+package com.framework.headers;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class  {
+
+    private final Map<String, String> headers = new HashMap<>();
+
+    public HeadersBuilder contentType(String contentType) {
+        headers.put(HeaderKeys.CONTENT_TYPE.value(), contentType);
+        return this;
+    }
+
+    public HeadersBuilder accept(String acceptType) {
+        headers.put(HeaderKeys.ACCEPT.value(), acceptType);
+        return this;
+    }
+
+    public HeadersBuilder acceptLanguage(String lang) {
+        headers.put(HeaderKeys.ACCEPT_LANGUAGE.value(), HeaderUtils.acceptLanguage(lang));
+        return this;
+    }
+
+    public HeadersBuilder userAgent(String userAgent) {
+        headers.put(HeaderKeys.USER_AGENT.value(), userAgent);
+        return this;
+    }
+
+    public HeadersBuilder bearer(String token) {
+        headers.put(HeaderKeys.AUTHORIZATION.value(), HeaderUtils.bearerAuthHeader(token));
+        return this;
+    }
+
+    public HeadersBuilder basic(String user, String pass) {
+        headers.put(HeaderKeys.AUTHORIZATION.value(), HeaderUtils.basicAuthHeader(user, pass));
+        return this;
+    }
+
+    public HeadersBuilder accessKey(String key, String secret) {
+        headers.put(HeaderKeys.AUTHORIZATION.value(), HeaderUtils.accessKeyAuthHeader(key, secret));
+        return this;
+    }
+
+    public HeadersBuilder correlationId(String id) {
+        headers.put(HeaderKeys.CORRELATION_ID.value(), id);
+        return this;
+    }
+
+    public HeadersBuilder custom(String key, String value) {
+        headers.put(key, value);
+        return this;
+    }
+
+    public Map<String, String> build() {
+        return Map.copyOf(headers);
+    }
+}
