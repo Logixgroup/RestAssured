@@ -1,0 +1,42 @@
+package com.framework.headers;
+
+public final class  {
+
+    private HeaderConstants() {}
+
+    // Standard Content Types
+    public static final String APPLICATION_JSON = "application/json";
+    public static final String APPLICATION_XML  = "application/xml";
+    public static final String TEXT_PLAIN       = "text/plain";
+    public static final String TEXT_HTML        = "text/html";
+    public static final String FORM_URLENCODED  = "application/x-www-form-urlencoded";
+    public static final String MULTIPART_FORM   = "multipart/form-data";
+
+    // Accept Types
+    public static final String ACCEPT_ALL = "*/*";
+
+    // Character Sets
+    public static final String UTF_8 = "UTF-8";
+
+    // Languages
+    public static final String EN_US = "en-US";
+    public static final String EN_GB = "en-GB";
+    public static final String FR_FR = "fr-FR";
+    public static final String DE_DE = "de-DE";
+
+    // Custom Client Headers
+    public static final String USER_AGENT_DEFAULT = "Automation-Client/1.0";
+    public static final String REQUEST_SOURCE = "Automation-Framework";
+
+    // Authorization Prefixes
+    public static final String BASIC_PREFIX  = "Basic ";
+    public static final String BEARER_PREFIX = "Bearer ";
+    public static final String ACCESS_KEY_PREFIX = "AK ";
+
+    // Correlation / Trace IDs (standard in enterprise apps)
+    public static final String CORRELATION_ID = "X-Correlation-Id";
+    public static final String TRACE_ID       = "X-Trace-Id";
+
+    // API Versioning
+    public static final String API_VERSION = "v1";
+}
