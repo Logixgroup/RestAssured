@@ -1,3 +1,12 @@
+@BeforeClass //Without filters, you'd have to do: given().log().all(); then().log().all();in every single test. Filters remove this repetition.
+public void init() {
+    RestAssured.filters(
+            new RequestLoggingFilter(),
+            new ResponseLoggingFilter()
+    );
+}
+
+
 @BeforeMethod
 public void setUp() throws Exception {
 
