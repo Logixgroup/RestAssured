@@ -1,0 +1,156 @@
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Objects;
+import java.util.UUID;
+
+public final class HeaderUtils {
+
+    private HeaderUtils() {}
+
+    public static final String BASIC_PREFIX       = "Basic ";
+    public static final String BEARER_PREFIX      = "Bearer ";
+    public static final String ACCESS_KEY_PREFIX  = "AccessKey ";
+    public static final String OAUTH2_PREFIX      = "OAuth ";
+    public static final String API_KEY_PREFIX     = "ApiKey ";
+
+    // Common validator
+    private static void validate(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(name + " cannot be null or blank");
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // BASIC AUTH (username:password → base64 → Basic <encoded>)
+    // ------------------------------------------------------------------
+    public static String basicAuthHeader(String username, String password) {
+        validate(username, "username");
+        validate(password, "password");
+
+        String raw = username + ":" + password;
+        String encoded = Base64.getEncoder()
+                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+
+        return BASIC_PREFIX.concat(encoded);
+    }
+
+    // ------------------------------------------------------------------
+    // BEARER TOKEN (Bearer <token>)
+    // ------------------------------------------------------------------
+    public static String bearerAuthHeader(String token) {
+        validate(token, "token");
+        return BEARER_PREFIX.concat(token);
+    }
+
+    // ------------------------------------------------------------------
+    // ACCESS KEY (key:secret → base64 → AccessKey <encoded>)
+    // ------------------------------------------------------------------
+    public static String accessKeyAuthHeader(String key, String secret) {
+        validate(key, "authorisationKey");
+        validate(secret, "authorisationSecret");
+
+        String raw = key + ":" + secret;
+        String encoded = Base64.getEncoder()
+                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+
+        return ACCESS_KEY_PREFIX.concat(encoded);
+    }
+
+    // ------------------------------------------------------------------
+    // API KEY IN HEADER (ApiKey <key>)
+    // ------------------------------------------------------------------
+    public static String apiKeyHeader(String key) {
+        validate(key, "apiKey");
+        return API_KEY_PREFIX.concat(key);
+    }
+
+    // ------------------------------------------------------------------
+    // API KEY AS RAW HEADER VALUE
+    // (example: "x-api-key: <key>")
+    // ------------------------------------------------------------------
+    public static String apiKeyRaw(String key) {
+        validate(key, "apiKey");
+        return key;
+    }
+
+    // ------------------------------------------------------------------
+    // OAUTH2 TOKEN (OAuth <token>)
+    // ------------------------------------------------------------------
+    public static String oAuth2Header(String token) {
+        validate(token, "oAuth2Token");
+        return OAUTH2_PREFIX.concat(token);
+    }
+
+    // ------------------------------------------------------------------
+    // CUSTOM HEADER
+    // (example: X-Correlation-Id: <value>)
+    // ------------------------------------------------------------------
+    public static String customHeader(String headerValue) {
+        validate(headerValue, "headerValue");
+        return headerValue;
+    }
+
+    // ------------------------------------------------------------------
+    // CONTENT TYPE HEADER
+    // ------------------------------------------------------------------
+    public static String contentType(String contentType) {
+        validate(contentType, "contentType");
+        return contentType;
+    }
+
+    // ------------------------------------------------------------------
+    // ACCEPT HEADER
+    // ------------------------------------------------------------------
+    public static String accept(String mimeType) {
+        validate(mimeType, "mimeType");
+        return mimeType;
+    }
+
+    // ------------------------------------------------------------------
+    // USER-AGENT
+    // ------------------------------------------------------------------
+    public static String userAgent(String agent) {
+        validate(agent, "userAgent");
+        return agent;
+    }
+
+    // ------------------------------------------------------------------
+    // CORRELATION ID (auto-generate UUID)
+    // ------------------------------------------------------------------
+    public static String correlationId() {
+        return UUID.randomUUID().toString();
+    }
+
+    // ------------------------------------------------------------------
+    // SESSION TOKEN (Session <token>)
+    // ------------------------------------------------------------------
+    public static String sessionToken(String token) {
+        validate(token, "sessionToken");
+        return token;
+    }
+
+    // ------------------------------------------------------------------
+    // HOST HEADER
+    // ------------------------------------------------------------------
+    public static String host(String host) {
+        validate(host, "host");
+        return host;
+    }
+
+    // ------------------------------------------------------------------
+    // ACCEPT-LANGUAGE HEADER
+    // ------------------------------------------------------------------
+    public static String acceptLanguage(String lang) {
+        validate(lang, "acceptLanguage");
+        return lang;
+    }
+}
+
+/* Example Usage 
+given()
+    .header("Authorization", HeaderUtils.bearerAuthHeader("abcd123"))
+    .header("x-api-key", HeaderUtils.apiKeyRaw("myKey123"))
+    .header("Content-Type", HeaderUtils.contentType("application/json"))
+    .header("X-Correlation-Id", HeaderUtils.correlationId())
+    .get("/endpoint");
+*/
