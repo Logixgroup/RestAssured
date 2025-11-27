@@ -1,0 +1,32 @@
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+import java.util.Map;
+public class FileImportTests {
+    private String fileDefinitionAPI;
+    private String postFileImport;
+    private String fileDefinitionUrl;
+    private String fileImportUrl;
+    private String bearerToken;
+    private Map<String, String> headers;
+    @BeforeClass
+    public void setUp() {
+        // Load request bodies
+        fileDefinitionAPI = ResourceLoader.read("requests/domesticwires.txt");
+        postFileImport   = ResourceLoader.read("requests/postFileImport.json");
+        // Build API endpoints
+        fileDefinitionUrl = sharedservicesproxyurl + "/v1/file-definition";
+        fileImportUrl     = sharedservicesproxyurl + "/v1/file-import";
+        // Auth header
+        bearerToken = "Bearer " + tokenService.getToken();
+        headers = Map.of(
+                "Authorization", bearerToken,
+                "Content-Type", "application/json"
+        );
+    }
+    @Test
+    public void testFileDefinition() {
+      // Your RestAssured call will go here
+        System.out.println("RequestBody → " + fileDefinitionAPI);
+        System.out.println("ImportBody  → " + postFileImport);
+    }
+}
