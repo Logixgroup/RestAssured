@@ -1,0 +1,13 @@
+public class  {
+    public static String read(String classpathFile) {
+        try {
+            return new String(
+                ResourceLoader.class.getClassLoader()
+                .getResourceAsStream(classpathFile)
+                .readAllBytes()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to load file: " + classpathFile, e);
+        }
+    }
+}
