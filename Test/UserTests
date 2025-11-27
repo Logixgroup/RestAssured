@@ -1,0 +1,60 @@
+package com.framework.tests;
+
+import com.framework.client.ApiClient;
+import com.framework.specs.ResponseSpecFactory;
+import io.restassured.response.Response;
+import org.testng.annotations.Test;
+
+import static org.hamcrest.Matchers.*;
+
+public class UserTests extends BaseApiTest {
+
+    @Test
+    public void testCreateAndFetchUser() {
+
+        // 1️⃣ Create User → Expect 201
+        String createPayload = "{ \"name\": \"Tom\", \"email\": \"tom@gmail.com\" }";
+
+        Response createResponse = ApiClient.execute(
+                "POST",
+                "/users",
+                createPayload,
+                baseReqSpec
+        );
+
+        createResponse.then()
+                .spec(ResponseSpecFactory.getCreatedSpec())
+                .body("id", notNullValue());
+
+        int userId = createResponse.jsonPath().getInt("id");
+
+        // 2️⃣ Fetch same user → Expect OK Spec
+        Response getResponse = ApiClient.execute(
+                "GET",
+                "/users/" + userId,
+                null,
+                baseReqSpec
+        );
+
+        getResponse.then()
+                .spec(okSpec)
+                .body("data.name", equalTo("Tom"));
+    }
+
+    @Test
+    public void testBadRequestScenario() {
+
+        // Missing required field → 400
+        String invalidPayload = "{ \"name\": \"\" }";
+
+        ApiClient.execute(
+                "POST",
+                "/users",
+                invalidPayload,
+                baseReqSpec
+        )
+        .then()
+        .spec(badRequestSpec)
+        .log().all();
+    }
+}
