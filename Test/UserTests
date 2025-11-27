@@ -57,4 +57,28 @@ public class UserTests extends BaseApiTest {
         .spec(badRequestSpec)
         .log().all();
     }
+
+public String buildBodyDataFor(String bodyContents) {
+
+    // Generate dynamic values
+    String memberNumber = UUID.randomUUID()
+            .toString()
+            .replace("-", "")
+            .substring(1, 9);
+
+    String loginId = UUID.randomUUID()
+            .toString()
+            .replace("-", "")
+            .substring(0, 9);
+
+    String mobileNumber = testData.getAdditionalData().get("mobileNumber");
+
+    // Replace placeholders in the body
+    return bodyContents
+            .replace("{fiId}", testData.getFiId())
+            .replace("{memberNumber}", memberNumber)
+            .replace("{loginId}", loginId)
+            .replace("{mobileNumber}", mobileNumber);
+}
+
 }
