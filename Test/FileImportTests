@@ -1,32 +1,117 @@
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
 import java.util.Map;
+import java.util.UUID;
+
+import static io.restassured.RestAssured.given;
+
 public class FileImportTests {
+
     private String fileDefinitionAPI;
     private String postFileImport;
+
     private String fileDefinitionUrl;
     private String fileImportUrl;
     private String bearerToken;
     private Map<String, String> headers;
+
     @BeforeClass
     public void setUp() {
-        // Load request bodies
+
+        // Load static body files
         fileDefinitionAPI = ResourceLoader.read("requests/domesticwires.txt");
         postFileImport   = ResourceLoader.read("requests/postFileImport.json");
+
         // Build API endpoints
         fileDefinitionUrl = sharedservicesproxyurl + "/v1/file-definition";
         fileImportUrl     = sharedservicesproxyurl + "/v1/file-import";
-        // Auth header
+
+        // Headers
         bearerToken = "Bearer " + tokenService.getToken();
         headers = Map.of(
                 "Authorization", bearerToken,
                 "Content-Type", "application/json"
         );
     }
+
+    // ---------------------------------------------------------
+    // TEST 1 – String Based Placeholder Replacement
+    // ---------------------------------------------------------
     @Test
-    public void testFileDefinition() {
-      // Your RestAssured call will go here
-        System.out.println("RequestBody → " + fileDefinitionAPI);
-        System.out.println("ImportBody  → " + postFileImport);
+    public void testFileImport_UsingStringReplacement() {
+
+        String finalBody = buildBodyDataFor(postFileImport);
+
+        given()
+            .headers(headers)
+            .body(finalBody)
+        .when()
+            .post(fileImportUrl)
+        .then()
+            .statusCode(200);
+    }
+
+
+    // ---------------------------------------------------------
+    // TEST 2 – Jackson ObjectNode JSON Merge (Preferred Method)
+    // ---------------------------------------------------------
+    @Test
+    public void testFileImport_UsingObjectNode() {
+
+        JsonNode finalBody = buildBodyDataWithJackson(postFileImport);
+
+        given()
+            .headers(headers)
+            .body(finalBody)
+        .when()
+            .post(fileImportUrl)
+        .then()
+            .statusCode(200);
+    }
+
+
+    // ---------------------------------------------------------
+    // UTIL 1: String-based placeholder replacement
+    // ---------------------------------------------------------
+    public String buildBodyDataFor(String bodyContents) {
+
+        String memberNumber = UUID.randomUUID().toString().replace("-", "").substring(1, 9);
+        String loginId      = UUID.randomUUID().toString().replace("-", "").substring(0, 9);
+        String mobileNumber = testData.getAdditionalData().get("mobileNumber");
+
+        return bodyContents
+                .replace("{fiId}", testData.getFiId())
+                .replace("{memberNumber}", memberNumber)
+                .replace("{loginId}", loginId)
+                .replace("{mobileNumber}", mobileNumber);
+    }
+
+
+    // ---------------------------------------------------------
+    // UTIL 2: Jackson ObjectNode JSON merge
+    // ---------------------------------------------------------
+    public JsonNode buildBodyDataWithJackson(String bodyContents) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode root = (ObjectNode) mapper.readTree(bodyContents);
+
+            String memberNumber = UUID.randomUUID().toString().replace("-", "").substring(1, 9);
+            String loginId      = UUID.randomUUID().toString().replace("-", "").substring(0, 9);
+            String mobileNumber = testData.getAdditionalData().get("mobileNumber");
+
+            root.put("fiId", testData.getFiId());
+            root.put("memberNumber", memberNumber);
+            root.put("loginId", loginId);
+            root.put("mobileNumber", mobileNumber);
+
+            return root;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error building body with Jackson", e);
+        }
     }
 }
