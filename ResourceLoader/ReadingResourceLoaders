@@ -1,0 +1,5 @@
+String fileDefinitionAPI = ResourceLoader.read("requests/domesticwires.txt");
+String postFileImport = ResourceLoader.read("requests/postFileImport.json");
+
+// ALternative to Springboot @Value("classpath:requests/domesticwires.txt") private String fileDefinitionAPI;
+//@Value("classpath:requests/postFileImport.json") private String postFileImport;
